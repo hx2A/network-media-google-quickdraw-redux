@@ -1,0 +1,4 @@
+*.nogit
+experiments/
+quickdraw-lambdas/.chalice
+
