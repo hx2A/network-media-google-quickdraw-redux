@@ -1,0 +1,22 @@
+https://api.ixora.io/quickdraw/drawings2/jp/basket
+
+https://github.com/aws/chalice
+https://chalice.readthedocs.io/en/latest/api.html
+
+https://aws.amazon.com/getting-started/projects/build-serverless-web-app-lambda-apigateway-s3-dynamodb-cognito/
+
+
+curl -i -X GET https://api.ixora.io/quickdraw/drawings/ad/bottlecap/all
+
+curl -i -X GET https://api.ixora.io/quickdraw/flagged/0
+
+curl -i -X POST --header "Content-Type: application/json" --data '{"p_id": "be|bottlecap", "s_id": 6177317552390144}'  https://api.ixora.io/quickdraw/censor
+
+curl -i -X POST --header "Content-Type: application/json" --data '{"p_id": "at|bottlecap", "s_id": 4725410099101696}'  https://api.ixora.io/quickdraw/flag
+
+https://stackoverflow.com/questions/40287012/how-to-change-user-status-force-change-password
+
+aws cognito-idp admin-initiate-auth --user-pool-id us-east-1_7OESlcisr --client-id 3lj9dbdcgt2drlipvoojgeqmnk --auth-flow ADMIN_NO_SRP_AUTH --auth-parameters USERNAME=admin,PASSWORD=<NEW_PASSWORD>
+
+aws cognito-idp admin-respond-to-auth-challenge --user-pool-id us-east-1_7OESlcisr --client-id 3lj9dbdcgt2drlipvoojgeqmnk --challenge-name NEW_PASSWORD_REQUIRED --challenge-responses NEW_PASSWORD=<NEW_PASSWORD>,USERNAME=admin --session %SESSION KEY FROM PREVIOUS COMMAND with ""%
+  

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<title>Google Quickdraw Sketches</title>
+
+<head>
+  <link rel="stylesheet" href="/css/jquery-ui.min.css" type="text/css" />
+  <link rel="stylesheet" href="/css/jquery-ui.theme.min.css" type="text/css" />
+  <link rel="stylesheet" href="/css/style.css" type="text/css" />
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="/js/jquery-ui.min.js"></script>
+  <script src="/js/ejs.min.js"></script>
+  <script src="/js/helper.js"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-62038124-2"></script>
+  <meta name="google-site-verification" content="ymlvtVWtjvo56CAZudJ4nQrC06APiZkrq_KdDLAqwow" />
+</head>
+
+<body>
+  <h1 class="title">Drawings by Country</h1>
+  <div class="">
+    <div>
+      <div id="instructions" class="instructions">
+        <p>
+          Below are drawings from Google's Quick, Draw! <a href="https://github.com/googlecreativelab/quickdraw-dataset">dataset</a>. The data was collected by getting millions of people around the world to play a Pictionary-like <a href="https://quickdraw.withgoogle.com">game</a>          with a machine learning algorithm developed by Google.
+        </p>
+        <p>
+          Google's built an <a href="https://quickdraw.withgoogle.com/data">interface</a> to allow people to peruse the data but does not allow users to filter by country. I was curious if there were geographical differences in how people create these
+          drawings. I built this user interface to give myself and others the opportunity to find out.
+        </p>
+      </div>
+      <form id="form">
+        <label for="categories" class="label">Category: </label>
+        <select name="categories" id="categories">
+          <option value="all">All Categories</option>
+          <option value="random">Random Category</option>
+        </select>
+        <label for="countries" class="label">Country: </label>
+        <select name="countries" id="countries">
+          <option value="all">All Countries</option>
+          <option value="random">Random Country</option>
+        </select>
+        <label for="recognized" class="label">Recognized by Google ML?</label>
+        <select name="recognized" id="recognized">
+          <option value="all">Recognized and Unrecognized</option>
+          <option value="yes">Recognized only</option>
+          <option value="no">Unrecognized only</option>
+        </select>
+        <input id="submit" type="submit" value="Submit">
+      </form>
+    </div>
+
+    <div id="drawings" class="drawings"></div>
+    <p id="error" class="ui-state-error ui-corner-all error">No drawings found meeting this criteria</p>
+
+    <script>
+      // constants
+      var QUERY_MIN_SIZE = 20;
+      var QUERY_REQUERY_COUNT = 10;
+
+      // establish state variables
+      var state = 'start';
+      var stateCategory = 'all';
+      var stateCategoryIndex = 0;
+      var stateCountry = 'all';
+      var stateCountryIndex = 0;
+      var stateRecognized = 'all';
+
+      var categoryLookup = undefined;
+      var countryCodeLookup = undefined;
+      var drawingTemplate = undefined;
+
+      function queryForDrawings(queryCount, queryLimit) {
+        var cc = stateCountry;
+        var cat = stateCategory;
+        var rec = stateRecognized;
+        if (stateCountry == 'all' || stateCategory == 'all') {
+          state = 'scrolling';
+        } else {
+          state = 'single_query';
+        }
+
+        // if either dropdown is set to 'all' this function will be called
+        // repeatedly. increment the state counters so we can keep track
+        // of what country / category to query for next.
+        if (stateCountry == 'all' && stateCategory == 'all') {
+          if (Object.keys(categoryLookup).length == stateCategoryIndex) {
+            state = 'done_scrolling';
+            return;
+          }
+
+          cat = Object.keys(categoryLookup)[stateCategoryIndex];
+          cc = Object.keys(countryCodeLookup)[stateCountryIndex];
+
+          if (Object.keys(countryCodeLookup).length == stateCountryIndex + 1) {
+            stateCountryIndex = 0;
+            stateCategoryIndex++;
+          } else {
+            stateCountryIndex++;
+          }
+        } else if (stateCountry == 'all') {
+          if (Object.keys(countryCodeLookup).length == stateCountryIndex) {
+            state = 'done_scrolling';
+            return;
+          } else {
+            cc = Object.keys(countryCodeLookup)[stateCountryIndex++];
+          }
+        } else if (stateCategory == 'all') {
+          if (Object.keys(categoryLookup).length == stateCategoryIndex) {
+            state = 'done_scrolling';
+            return;
+          } else {
+            cat = Object.keys(categoryLookup)[stateCategoryIndex++];
+          }
+        }
+
+        var url = `https://api.ixora.io/quickdraw/drawings/${cc}/${cat}/${rec}`;
+        console.log('Querying', url);
+        $.get({
+          url: url,
+          success: function(res) {
+            if (res['response'] == 'success') {
+              var data = {
+                drawings: res['data'],
+                categoryLookup: categoryLookup,
+                countryCodeLookup: countryCodeLookup,
+                state: {
+                  country: stateCountry,
+                  category: stateCategory,
+                  recognized: stateRecognized
+                },
+                user: true
+              };
+              $("#drawings").append(ejs.render(drawingTemplate, data));
+              $("span.clickable").button();
+              $("span.flag").unbind('click', flagDrawing);
+              $("span.flag").button().click(flagDrawing);
+            } else if (state == 'single_query') {
+              $('#error').css('visibility', 'visible');
+            }
+            if (state == 'single_query' && res.data.length == 0) {
+              $('#error').css('visibility', 'visible');
+            }
+            // little to nothing returned, query for more
+            if (state == 'scrolling' && (queryCount - res.data.length) > 0 && queryLimit > 0) {
+              queryForDrawings(queryCount - res.data.length, --queryLimit);
+            }
+          }
+        });
+      };
+
+      function filterDrawings(cc, cat, rec) {
+        $('#categories').val(cat).selectmenu('refresh');
+        $('#countries').val(cc).selectmenu('refresh');
+        $('#recognized').val(rec).selectmenu('refresh');
+        initQuery(cc, cat, rec);
+      }
+
+      function randomKey(lookup) {
+        var keys = Object.keys(lookup);
+        return keys[Math.floor(Math.random() * keys.length)];
+      }
+
+      function initQuery(cc, cat, rec) {
+        $('#error').css('visibility', 'hidden');
+        $('#instructions').fadeOut(800);
+        if (cc == 'random') {
+          stateCountry = randomKey(countryCodeLookup);
+        } else {
+          stateCountry = cc;
+        }
+        if (cat == 'random') {
+          stateCategory = randomKey(categoryLookup);
+        } else {
+          stateCategory = cat;
+        }
+        stateRecognized = rec;
+        stateCountryIndex = 0;
+        stateCategoryIndex = 0;
+        state = 'start';
+        $("#drawings").html('');
+        queryForDrawings(QUERY_MIN_SIZE, QUERY_REQUERY_COUNT);
+      }
+
+      function flagDrawing() {
+        // get flag's parent drawing div
+        var $drawing = $(this).parents('div.drawing:first');
+        // get the drawing's s_id & p_id
+        var p_id = $drawing.children('[name=p_id]:first').val();
+        var s_id = parseInt($drawing.children('[name=s_id]:first').val());
+
+        $.ajax({
+          type: 'POST',
+          url: 'https://api.ixora.io/quickdraw/flag',
+          contentType: 'application/json',
+          crossDomain: true,
+          contentType: 'application/json',
+          data: JSON.stringify({
+            p_id: p_id,
+            s_id: parseInt(s_id)
+          }),
+          dataType: 'json',
+          success: function(res) {
+            if (res['response'] == 'success') {
+              $drawing.fadeOut(800);
+            } else {
+              console.log(`failed to flag drawing ${p_id} ${s_id}`);
+            }
+          }
+        });
+      }
+
+      $(function() {
+        // init jQuery widgets
+        $("#categories").selectmenu().selectmenu("menuWidget").addClass("overflow left_align");
+        $("#countries").selectmenu().selectmenu("menuWidget").addClass("overflow left_align");
+        $("#recognized").selectmenu().selectmenu("menuWidget").addClass("left_align");
+        $("#submit").button();
+
+        // load the drawing template
+        $.ajax({
+          url: '/templates/drawings.ejs',
+          success: function(result) {
+            drawingTemplate = result;
+          },
+          failure: function(err) {
+            console.log(err);
+          },
+        });
+
+        // load the category dropdown values
+        $.ajax({
+          url: '/data/category_codes.json',
+          success: function(result) {
+            categoryLookup = result;
+            $.each(categoryLookup, function(val, text) {
+              $('#categories').append(new Option(text, val));
+            });
+          },
+          failure: function(err) {
+            console.log(err);
+          },
+        });
+
+        // load the country dropdown values
+        $.ajax({
+          url: '/data/iso_codes.json',
+          success: function(result) {
+            countryCodeLookup = result;
+            $.each(countryCodeLookup, function(val, text) {
+              $('#countries').append(new Option(text, val));
+            });
+          },
+          failure: function(err) {
+            console.log(err);
+          },
+        });
+
+        function scrollEvent() {
+          $(window).unbind('scroll', scrollEvent);
+          if (state == 'scrolling' && $(window).scrollTop() == $(document).height() - $(window).height() - 0) {
+            queryForDrawings(QUERY_MIN_SIZE, QUERY_REQUERY_COUNT);
+          }
+          $(window).bind('scroll', scrollEvent);
+        }
+
+        $(window).bind('scroll', scrollEvent);
+
+        $("#form").submit(function(e) {
+          e.preventDefault();
+          initQuery($("#countries").val(),
+            $("#categories").val(),
+            $("#recognized").val());
+        });
+      });
+    </script>
+  </div>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+    gtag('js', new Date());
+
+    gtag('config', 'UA-62038124-2');
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,40 @@
+<% drawings.forEach(function(datum) { %>
+  <div class="drawing ui-corner-all">
+    <input name="p_id" type="hidden" value="<%= datum['p_id'] -%>" />
+    <input name="s_id" type="hidden" value="<%= datum['s_id'] -%>" />
+    <svg viewBox="0 0 255 255" height="180px" width="180px">
+      <path d="<%= util.svg_path(datum['d']) -%>" style="fill:none;stroke:#220000;stroke-width:1.0px;stroke-opacity:1" />
+    </svg>
+    <p class="drawing">
+      <% if (state.country == 'all') { -%>
+        <span class='info clickable' onclick="filterDrawings('<%=datum['p_id'].split('|')[0]-%>', '<%=state.category-%>', '<%=state.recognized-%>')"><%= countryCodeLookup[datum['p_id'].split('|')[0]] -%></span>
+      <% } else { -%>
+        <span class='info'><%= countryCodeLookup[datum['p_id'].split('|')[0]] -%></span>
+      <% } -%>
+      <% if (state.category == 'all') { -%>
+        <span class='info clickable' onclick="filterDrawings('<%=state.country-%>', '<%=datum['p_id'].split('|')[1]-%>', '<%=state.recognized-%>')"><%= categoryLookup[datum['p_id'].split('|')[1]] -%></span>
+      <% } else { -%>
+        <span class='info'><%= categoryLookup[datum['p_id'].split('|')[1]] -%></span>
+      <% } -%>
+      <% if (datum['r']) { 
+           if (state.recognized == 'all') { -%>
+             <span class='info clickable' onclick="filterDrawings('<%=state.country-%>', '<%=state.category-%>', 'yes')">Recognized</span>
+           <% } else { -%>
+             <span class='info'>Recognized</span>
+           <% } -%>
+      <% } else {
+           if (state.recognized == 'all') { -%>
+             <span class='info clickable' onclick="filterDrawings('<%=state.country-%>', '<%=state.category-%>', 'no')">Not Recognized</span>
+           <% } else { -%>
+             <span class='info'>Not Recognized</span>
+           <% } -%>
+      <% } -%>
+      <% if (user) { -%>
+        <span class='info clickable flag'>Flag as Inappropriate</span>
+      <% } else if (adminControls) { -%>
+        <span class='info clickable acceptable'>Mark Acceptable</span>
+        <span class='info clickable inappropriate'>Mark Inappropriate</span>
+      <% } -%>
+    </p>
+  </div>
+  <% }); %>

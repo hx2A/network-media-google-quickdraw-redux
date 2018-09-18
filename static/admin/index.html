@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<title>Google Quickdraw Sketches</title>
+
+<head>
+  <link rel="stylesheet" href="/css/jquery-ui.min.css" type="text/css" />
+  <link rel="stylesheet" href="/css/jquery-ui.theme.min.css" type="text/css" />
+  <link rel="stylesheet" href="/css/style.css" type="text/css" />
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="/js/jquery-ui.min.js"></script>
+  <script src="/js/ejs.min.js"></script>
+  <script src="/js/helper.js"></script>
+  <script src="/js/aws/aws-cognito-sdk.min.js"></script>
+  <script src="/js/aws/amazon-cognito-identity.min.js"></script>
+</head>
+
+<body>
+  <h1 class="title">Admin Console</h1>
+  <div class="">
+    <div>
+      <h2 class="state">Flagged Drawings</h2>
+    </div>
+    <input id="flagged" type="button" value="Show Flagged Drawings">
+    <input id="inappropriate" type="button" value="Show Inappropriate Drawings">
+  </div>
+  <div id="drawings" class="drawings"></div>
+  <p id="error" class="ui-state-error ui-corner-all error">No found drawings</p>
+
+  <script>
+    // establish state variables
+    var state = '';
+    var stateDrawingType = 'flagged';
+    var stateLastNum = 0;
+
+    var categoryLookup = undefined;
+    var countryCodeLookup = undefined;
+    var drawingTemplate = undefined;
+
+    var jwtToken = undefined;
+    var cognitoConfig = {
+      userPoolId: 'us-east-1_7OESlcisr',
+      userPoolClientId: '3lj9dbdcgt2drlipvoojgeqmnk',
+      region: 'us-east-1'
+    };
+
+    var userPool = new AmazonCognitoIdentity.CognitoUserPool({
+      UserPoolId: cognitoConfig.userPoolId,
+      ClientId: cognitoConfig.userPoolClientId
+    });
+
+    function checkAdminAuthentication() {
+      cognitoUser = new AmazonCognitoIdentity.CognitoUser({
+        Username: 'admin',
+        Pool: userPool
+      });
+
+      cognitoUser.getSession(function(err, session) {
+        if (session == null) {
+          console.log('User not authenticated. Redirecting to login screen');
+          window.location.href = '/login/';
+        } else {
+          jwtToken = session.getIdToken().getJwtToken();
+          $.get({
+            // type: 'GET',
+            url: 'https://api.ixora.io/quickdraw/authenticated',
+            headers: {
+              'Authorization': jwtToken
+            },
+            contentType: 'application/json',
+            success: function(result) {
+              console.log('User has authenticated');
+            },
+            failure: function(err) {
+              console.log('User not authenticated. Redirecting to login screen');
+              window.location.href = '/login/';
+            },
+            error: function(err) {
+              console.log('User not authenticated. Redirecting to login screen');
+              window.location.href = '/login/';
+            }
+          });
+        }
+      });
+    }
+
+    var reportDrawing = (clicked, report) => {
+      // get flag's parent drawing div
+      var $drawing = clicked.parents('div.drawing:first');
+      // get the drawing's s_id & p_id
+      var p_id = $drawing.children('[name=p_id]:first').val();
+      var s_id = parseInt($drawing.children('[name=s_id]:first').val());
+
+      $.ajax({
+        type: 'POST',
+        url: `https://api.ixora.io/quickdraw/${report}`,
+        headers: {
+          'Authorization': jwtToken
+        },
+        contentType: 'application/json',
+        crossDomain: true,
+        data: JSON.stringify({
+          p_id: p_id,
+          s_id: parseInt(s_id)
+        }),
+        dataType: 'json',
+        success: function(res) {
+          if (res['response'] == 'success') {
+            $drawing.fadeOut(800);
+          } else {
+            console.log(`failed to ${report} drawing ${p_id} ${s_id}`);
+          }
+        }
+      });
+    }
+
+    function inappropriateDrawing() {
+      reportDrawing($(this), 'censor');
+    }
+
+    function acceptableDrawing() {
+      reportDrawing($(this), 'unflag');
+    }
+
+    function queryForDrawings() {
+      var url = `https://api.ixora.io/quickdraw/${stateDrawingType}/${stateLastNum}`;
+      console.log('Querying', url);
+      $.get({
+        url: url,
+        headers: {
+          'Authorization': jwtToken
+        },
+        contentType: 'application/json',
+        success: function(res) {
+          if (res['response'] == 'success') {
+            if (res['data'].length > 0) {
+              var data = {
+                drawings: res['data'],
+                state: {
+                  country: 'na',
+                  category: 'na',
+                  recognized: 'na'
+                },
+                user: false,
+                adminControls: stateDrawingType == 'flagged'
+              };
+              $("#drawings").append(ejs.render(drawingTemplate, data));
+              $("span.clickable").button();
+              if (stateDrawingType == 'flagged') {
+                $("span.acceptable").unbind('click', acceptableDrawing);
+                $("span.acceptable").button().click(acceptableDrawing);
+                $("span.inappropriate").unbind('click', inappropriateDrawing);
+                $("span.inappropriate").button().click(inappropriateDrawing);
+              }
+              stateLastNum = res['data'][res['data'].length - 1]['s_id'];
+              state = 'scrolling';
+            } else {
+              if (state == 'start') {
+                $('#error').css('visibility', 'visible');
+              }
+              state = 'done';
+            }
+          } else {
+            $('#error').css('visibility', 'visible');
+            state = 'done';
+          }
+        }
+      });
+    };
+
+    function initQuery(drawingType) {
+      $('#error').css('visibility', 'hidden');
+      stateLastNum = 0;
+      stateDrawingType = drawingType;
+      state = 'start';
+      $("#drawings").html('');
+      queryForDrawings(20, 10);
+    }
+
+    $(function() {
+      checkAdminAuthentication();
+
+      // init jQuery widgets
+      function showInappropriateDrawings() {
+        initQuery('inappropriate');
+        $("h2.state").html("Inappropriate Drawings");
+      }
+
+      function showFlaggedDrawings() {
+        initQuery('flagged');
+        $("h2.state").html("Flagged Drawings");
+      }
+
+      $("#flagged").button().click(showFlaggedDrawings);
+      $("#inappropriate").button().click(showInappropriateDrawings);
+
+      // load the drawing template
+      $.ajax({
+        url: '/templates/drawings.ejs',
+        success: function(result) {
+          drawingTemplate = result;
+        },
+        failure: function(err) {
+          console.log(err);
+        },
+        async: false
+      });
+
+      // load the category dropdown values
+      $.ajax({
+        url: '/data/category_codes.json',
+        success: function(result) {
+          categoryLookup = result;
+          $.each(categoryLookup, function(val, text) {
+            $('#categories').append(new Option(text, val));
+          });
+        },
+        failure: function(err) {
+          console.log(err);
+        },
+        async: false
+      });
+
+      // load the country dropdown values
+      $.ajax({
+        url: '/data/iso_codes.json',
+        success: function(result) {
+          countryCodeLookup = result;
+          $.each(countryCodeLookup, function(val, text) {
+            $('#countries').append(new Option(text, val));
+          });
+        },
+        failure: function(err) {
+          console.log(err);
+        },
+        async: false
+      });
+
+      function scrollEvent() {
+        $(window).unbind('scroll', scrollEvent);
+        if (state == 'scrolling' && $(window).scrollTop() == $(document).height() - $(window).height() - 0) {
+          queryForDrawings();
+        }
+        $(window).bind('scroll', scrollEvent);
+      }
+
+      $(window).bind('scroll', scrollEvent);
+    });
+  </script>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="stylesheet" href="/css/jquery-ui.min.css" type="text/css" />
+  <link rel="stylesheet" href="/css/jquery-ui.theme.min.css" type="text/css" />
+  <link rel="stylesheet" href="/css/style.css" type="text/css" />
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="/js/jquery-ui.min.js"></script>
+  <script src="/js/aws/aws-cognito-sdk.min.js"></script>
+  <script src="/js/aws/amazon-cognito-identity.min.js"></script>
+</head>
+
+<body>
+  <div class="left">
+    <h1>Admin Login</h1>
+    <form id="loginForm">
+      <p>Username:</p>
+      <input type="text" id="username" placeholder="Username" required>
+      <p>Password:</p>
+      <input type="password" id="password" placeholder="Password" pattern=".*" required>
+      <p>
+        <input id="submitButton" type="submit" value="Sign in">
+      </p>
+    </form>
+  </div>
+
+  <script>
+    $(function() {
+      var cognitoConfig = {
+          userPoolId: 'us-east-1_7OESlcisr',
+          userPoolClientId: '3lj9dbdcgt2drlipvoojgeqmnk',
+          region: 'us-east-1'
+      };
+
+      var userPool = new AmazonCognitoIdentity.CognitoUserPool({
+        UserPoolId: cognitoConfig.userPoolId,
+        ClientId: cognitoConfig.userPoolClientId
+      });
+
+      if (typeof AWSCognito !== 'undefined') {
+        AWSCognito.config.region = cognitoConfig.region;
+      }
+
+      function signin(username, password, onSuccess, onFailure) {
+        var authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
+          Username: username,
+          Password: password
+        });
+
+        var cognitoUser = new AmazonCognitoIdentity.CognitoUser({
+          Username: username,
+          Pool: userPool
+        });
+
+        cognitoUser.authenticateUser(authenticationDetails, {
+          onSuccess: onSuccess,
+          onFailure: onFailure
+        });
+      }
+
+      function login(event) {
+        var username = $('#username').val();
+        var password = $('#password').val();
+        event.preventDefault();
+        signin(username, password,
+          function success() {
+            console.log('Logged In using AWS Cognito');
+            window.location.href = '/admin/';
+          },
+          function error(err) {
+            alert('Login Failed');
+          }
+        );
+      }
+
+      $("#submitButton").button().click(login);
+    });
+  </script>
+</body>
+
+</html>
