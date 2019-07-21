@@ -58,7 +58,7 @@ def get_drawings(country, category, recognized):
         response = util.remove_decimals(response['Items'])
 
         return {'response': 'success', 'data': response}
-    except Exception as e:
+    except Exception:
         return {'response': 'error'}
 
 
@@ -81,7 +81,7 @@ def _admin_query(min_s_id, index_name, flag_char):
         response = util.remove_decimals(response['Items'])
 
         return {'response': 'success', 'data': response}
-    except Exception as e:
+    except Exception:
         return {'response': 'error'}
 
 
@@ -121,7 +121,7 @@ def _update_flags(params, update_expression, include_values=True):
     try:
         table.update_item(**update_args)
         return {'response': 'success'}
-    except Exception as e:
+    except Exception:
         return {'response': 'error'}
 
 
