@@ -19,4 +19,15 @@ https://stackoverflow.com/questions/40287012/how-to-change-user-status-force-cha
 aws cognito-idp admin-initiate-auth --user-pool-id us-east-1_7OESlcisr --client-id 3lj9dbdcgt2drlipvoojgeqmnk --auth-flow ADMIN_NO_SRP_AUTH --auth-parameters USERNAME=admin,PASSWORD=<NEW_PASSWORD>
 
 aws cognito-idp admin-respond-to-auth-challenge --user-pool-id us-east-1_7OESlcisr --client-id 3lj9dbdcgt2drlipvoojgeqmnk --challenge-name NEW_PASSWORD_REQUIRED --challenge-responses NEW_PASSWORD=<NEW_PASSWORD>,USERNAME=admin --session %SESSION KEY FROM PREVIOUS COMMAND with ""%
-  
+
+# How to update
+1. Make sure pipenv is installed
+2. Update pipenv file:
+
+$ pipenv update
+
+3. Start pipenv:
+$ pipenv shell
+
+4. deploy code to AWS lambda
+$ make lambda
