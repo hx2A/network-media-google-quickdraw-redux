@@ -21,6 +21,11 @@ aws cognito-idp admin-initiate-auth --user-pool-id us-east-1_7OESlcisr --client-
 aws cognito-idp admin-respond-to-auth-challenge --user-pool-id us-east-1_7OESlcisr --client-id 3lj9dbdcgt2drlipvoojgeqmnk --challenge-name NEW_PASSWORD_REQUIRED --challenge-responses NEW_PASSWORD=<NEW_PASSWORD>,USERNAME=admin --session %SESSION KEY FROM PREVIOUS COMMAND with ""%
 
 # How to update
+
+0. Deactivate conda?
+
+$ conda deactivate
+
 1. Make sure pipenv is installed
 2. Update pipenv file:
 
